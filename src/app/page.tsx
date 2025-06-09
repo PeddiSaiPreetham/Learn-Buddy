@@ -432,19 +432,6 @@ export default function HomePage() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="mt-8 shadow-md bg-accent/10 border-accent">
-              <CardHeader>
-                  <CardTitle className="font-headline flex items-center gap-2 text-xl text-accent-foreground">
-                      <AlertTriangle className="h-5 w-5 text-accent" />
-                      Important Note
-                  </CardTitle>
-              </CardHeader>
-              <CardContent>
-                  <p className="text-sm text-accent-foreground/90">
-                      If this is your first time using authentication, you'll need to set up Firebase in your project and update the environment variables in the <code>.env</code> file with your Firebase project credentials. Check the console for more details if you encounter issues.
-                  </p>
-              </CardContent>
-            </Card>
           </main>
         </div>
       </div>
