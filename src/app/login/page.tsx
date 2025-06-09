@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,6 +21,12 @@ export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
 
+  useEffect(() => {
+    if (user && !authLoading) {
+      router.push('/');
+    }
+  }, [user, authLoading, router]);
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -29,8 +35,9 @@ export default function LoginPage() {
     );
   }
 
+  // If user is already logged in and not loading, useEffect will handle redirect.
+  // Return null here to prevent rendering the form while redirecting.
   if (user) {
-    router.push('/');
     return null;
   }
 
@@ -39,7 +46,7 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await loginWithEmail(email, password);
-      // 성공 시 AuthContext에서 router.push('/')로 리디렉션
+      // Success redirection is handled by AuthContext or the useEffect above
       toast({ title: "Login Successful", description: "Welcome back!" });
     } catch (error: any) {
       console.error(error);
@@ -57,7 +64,7 @@ export default function LoginPage() {
     setIsGoogleLoading(true);
     try {
       await loginWithGoogle();
-      // 성공 시 AuthContext에서 router.push('/')로 리디렉션
+      // Success redirection is handled by AuthContext or the useEffect above
       toast({ title: "Login Successful", description: "Welcome!" });
     } catch (error: any) {
       console.error(error);
