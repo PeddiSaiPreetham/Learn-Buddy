@@ -23,11 +23,28 @@ import { Lightbulb, Loader2, Sparkles, Wand2, UserCheck, AlertTriangle } from 'l
 import { suggestTaskOrganization } from '@/ai/flows/suggest-task-organization';
 import { generateLearningPathway, type GenerateLearningPathwayOutput } from '@/ai/flows/generate-learning-pathway';
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+  doc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  orderBy,
+  Timestamp,
+  writeBatch,
+  serverTimestamp,
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export default function HomePage() {
-  const { user, loading: authLoading } = useAuth(); // Get user and loading state
+  const { user, loading: authLoading } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [isLoadingTasks, setIsLoadingTasks] = useState(true);
   const [isLoadingSuggestion, setIsLoadingSuggestion] = useState(false);
   const [organizationSuggestion, setOrganizationSuggestion] = useState<string | null>(null);
   const [isSuggestionDialogOpen, setIsSuggestionDialogOpen] = useState(false);
@@ -39,86 +56,169 @@ export default function HomePage() {
 
   const { toast } = useToast();
 
+  const generateId = () => crypto.randomUUID(); // Still used for subtask IDs within parent doc
+
+  // Fetch tasks from Firestore
   useEffect(() => {
-    if (user) { // Only load tasks if user is logged in
-      const storedTasks = localStorage.getItem(`pythonicTasks_${user.uid}`);
-      if (storedTasks) {
-        try {
-          const parsedTasks = JSON.parse(storedTasks);
-          const validatedTasks = parsedTasks.map((task: Task) => ({
-            ...task,
-            subtasks: task.subtasks || [],
-          }));
-          setTasks(validatedTasks);
-        } catch (error) {
-          console.error("Error parsing tasks from local storage:", error);
-          setTasks([]);
-        }
-      } else {
-        setTasks([]); // Clear tasks if no stored tasks for this user
+    const fetchTasks = async () => {
+      if (!user) {
+        setTasks([]);
+        setIsLoadingTasks(false);
+        return;
       }
+      setIsLoadingTasks(true);
+      try {
+        const tasksCol = collection(db, 'users', user.uid, 'tasks');
+        const q = query(tasksCol, orderBy('createdAt', 'desc'));
+        const taskSnapshot = await getDocs(q);
+        const userTasks = taskSnapshot.docs.map(docSnapshot => {
+          const data = docSnapshot.data();
+          // Convert Firestore Timestamps to ISO strings if necessary,
+          // for now assuming createdAt is stored as ISO string based on add logic
+          return {
+            id: docSnapshot.id,
+            description: data.description,
+            completed: data.completed,
+            storyPoints: data.storyPoints,
+            createdAt: data.createdAt, // This should be ISO string
+            subtasks: data.subtasks || [],
+          } as Task;
+        });
+        setTasks(userTasks);
+      } catch (error) {
+        console.error("Error fetching tasks:", error);
+        toast({ title: "Error", description: "Could not fetch tasks.", variant: "destructive" });
+      } finally {
+        setIsLoadingTasks(false);
+      }
+    };
+
+    if (user) {
+      fetchTasks();
     } else {
-      setTasks([]); // Clear tasks if no user
+      setTasks([]); // Clear tasks if user logs out
+      setIsLoadingTasks(false); // Ensure loading is false if no user
     }
-  }, [user]); // Rerun when user changes
+  }, [user, toast]);
 
-  useEffect(() => {
-    if (user) { // Only save tasks if user is logged in
-      localStorage.setItem(`pythonicTasks_${user.uid}`, JSON.stringify(tasks));
+
+  const addTask = async (description: string) => {
+    if (!user) {
+      toast({ title: "Not Logged In", description: "You must be logged in to add tasks.", variant: "destructive" });
+      return;
     }
-  }, [tasks, user]); // Rerun when tasks or user changes
-
-  const generateId = () => crypto.randomUUID();
-
-  const addTask = (description: string) => {
-    const newTask: Task = {
-      id: generateId(),
+    const newTaskData = {
       description,
       completed: false,
       storyPoints: 0,
       createdAt: new Date().toISOString(),
-      isNew: true,
-      subtasks: [],
+      subtasks: [] as SubTask[],
+      userId: user.uid, // Store userId for potential rules/queries
     };
-    setTasks(prevTasks => [newTask, ...prevTasks]);
-    setTimeout(() => {
-      setTasks(currentTasks => currentTasks.map(t => t.id === newTask.id ? {...t, isNew: false} : t));
-    }, 600);
+    try {
+      const tasksCol = collection(db, 'users', user.uid, 'tasks');
+      const docRef = await addDoc(tasksCol, newTaskData);
+      const newTaskWithId: Task = { ...newTaskData, id: docRef.id, isNew: true };
+      setTasks(prevTasks => [newTaskWithId, ...prevTasks]);
+      setTimeout(() => {
+        setTasks(currentTasks => currentTasks.map(t => t.id === newTaskWithId.id ? {...t, isNew: false} : t));
+      }, 600);
+      toast({ title: "Task Added", description: "Your new task has been saved." });
+    } catch (error) {
+      console.error("Error adding task:", error);
+      toast({ title: "Error", description: "Could not add task to database.", variant: "destructive" });
+    }
   };
 
-  const toggleComplete = (id: string) => {
-    setTasks(
-      tasks.map((task) =>
-        task.id === id ? { ...task, completed: !task.completed } : task
-      )
-    );
+  const toggleComplete = async (id: string) => {
+    if (!user) return;
+    const taskToUpdate = tasks.find(t => t.id === id);
+    if (!taskToUpdate) return;
+    
+    const taskRef = doc(db, 'users', user.uid, 'tasks', id);
+    try {
+      await updateDoc(taskRef, { completed: !taskToUpdate.completed });
+      setTasks(
+        tasks.map((task) =>
+          task.id === id ? { ...task, completed: !task.completed } : task
+        )
+      );
+    } catch (error) {
+      console.error("Error updating task completion:", error);
+      toast({ title: "Error", description: "Could not update task status.", variant: "destructive" });
+    }
   };
 
-  const updateStoryPoints = (id: string, points: number) => {
-    setTasks(
-      tasks.map((task) =>
-        task.id === id ? { ...task, storyPoints: points } : task
-      )
-    );
+  const updateStoryPoints = async (id: string, points: number) => {
+    if (!user) return;
+    const taskRef = doc(db, 'users', user.uid, 'tasks', id);
+    try {
+      await updateDoc(taskRef, { storyPoints: points });
+      setTasks(
+        tasks.map((task) =>
+          task.id === id ? { ...task, storyPoints: points } : task
+        )
+      );
+    } catch (error) {
+      console.error("Error updating story points:", error);
+      toast({ title: "Error", description: "Could not update story points.", variant: "destructive" });
+    }
   };
   
-  const deleteTask = (id: string) => {
-    setTasks(tasks.filter(task => task.id !== id));
-    toast({
-      title: "Task Deleted",
-      description: "The task has been successfully removed.",
-    });
+  const deleteTask = async (id: string) => {
+    if (!user) return;
+    const taskRef = doc(db, 'users', user.uid, 'tasks', id);
+    try {
+      await deleteDoc(taskRef);
+      setTasks(tasks.filter(task => task.id !== id));
+      toast({
+        title: "Task Deleted",
+        description: "The task has been successfully removed from the database.",
+      });
+    } catch (error) {
+      console.error("Error deleting task:", error);
+      toast({ title: "Error", description: "Could not delete task.", variant: "destructive" });
+    }
   };
 
-  const deleteAllCompletedTasks = () => {
-    setTasks(prevTasks => prevTasks.filter(task => !task.completed));
-    toast({
-      title: "All Completed Tasks Deleted",
-      description: "All completed tasks have been successfully removed.",
-    });
+  const deleteAllCompletedTasks = async () => {
+    if (!user) return;
+    setIsLoadingTasks(true); 
+    try {
+      const batchOp = writeBatch(db);
+      const tasksCol = collection(db, 'users', user.uid, 'tasks');
+      const q = query(tasksCol, where('completed', '==', true));
+      const completedTasksSnapshot = await getDocs(q);
+
+      if (completedTasksSnapshot.empty) {
+        toast({ title: "No completed tasks to delete." });
+        setIsLoadingTasks(false);
+        return;
+      }
+
+      completedTasksSnapshot.docs.forEach(docSnapshot => {
+        batchOp.delete(docSnapshot.ref);
+      });
+      await batchOp.commit();
+      setTasks(prevTasks => prevTasks.filter(task => !task.completed));
+      toast({
+        title: "All Completed Tasks Deleted",
+        description: "Completed tasks have been removed from the database.",
+      });
+    } catch (error) {
+      console.error("Error deleting all completed tasks:", error);
+      toast({ title: "Error", description: "Could not delete completed tasks.", variant: "destructive" });
+    } finally {
+      setIsLoadingTasks(false);
+    }
   };
 
-  const addSubTask = (parentId: string, description: string) => {
+  const addSubTask = async (parentId: string, description: string) => {
+    if (!user) return;
+    const parentTaskRef = doc(db, 'users', user.uid, 'tasks', parentId);
+    const parentTask = tasks.find(t => t.id === parentId);
+    if (!parentTask) return;
+
     const newSubTask: SubTask = {
       id: generateId(),
       description,
@@ -126,47 +226,69 @@ export default function HomePage() {
       parentId,
       createdAt: new Date().toISOString(),
     };
-    setTasks(prevTasks => 
-      prevTasks.map(task => 
-        task.id === parentId 
-          ? { ...task, subtasks: [...(task.subtasks || []), newSubTask] } 
-          : task
-      )
-    );
+    const updatedSubtasks = [...(parentTask.subtasks || []), newSubTask];
+    try {
+      await updateDoc(parentTaskRef, { subtasks: updatedSubtasks });
+      setTasks(prevTasks => 
+        prevTasks.map(task => 
+          task.id === parentId 
+            ? { ...task, subtasks: updatedSubtasks } 
+            : task
+        )
+      );
+    } catch (error) {
+      console.error("Error adding subtask:", error);
+      toast({ title: "Error", description: "Could not add subtask.", variant: "destructive" });
+    }
   };
 
-  const toggleSubTaskComplete = (parentId: string, subTaskId: string) => {
-    setTasks(prevTasks =>
-      prevTasks.map(task =>
-        task.id === parentId
-          ? {
-              ...task,
-              subtasks: (task.subtasks || []).map(subtask =>
-                subtask.id === subTaskId
-                  ? { ...subtask, completed: !subtask.completed }
-                  : subtask
-              ),
-            }
-          : task
-      )
+  const toggleSubTaskComplete = async (parentId: string, subTaskId: string) => {
+    if (!user) return;
+    const parentTaskRef = doc(db, 'users', user.uid, 'tasks', parentId);
+    const parentTask = tasks.find(t => t.id === parentId);
+    if (!parentTask || !parentTask.subtasks) return;
+
+    const updatedSubtasks = parentTask.subtasks.map(subtask =>
+      subtask.id === subTaskId
+        ? { ...subtask, completed: !subtask.completed }
+        : subtask
     );
+    try {
+      await updateDoc(parentTaskRef, { subtasks: updatedSubtasks });
+      setTasks(prevTasks =>
+        prevTasks.map(task =>
+          task.id === parentId
+            ? { ...task, subtasks: updatedSubtasks }
+            : task
+        )
+      );
+    } catch (error) {
+      console.error("Error updating subtask:", error);
+      toast({ title: "Error", description: "Could not update subtask status.", variant: "destructive" });
+    }
   };
 
-  const deleteSubTask = (parentId: string, subTaskId: string) => {
-    setTasks(prevTasks =>
-      prevTasks.map(task =>
-        task.id === parentId
-          ? {
-              ...task,
-              subtasks: (task.subtasks || []).filter(subtask => subtask.id !== subTaskId),
-            }
-          : task
-      )
-    );
-    toast({
-      title: "Subtask Deleted",
-      description: "The subtask has been successfully removed.",
-    });
+  const deleteSubTask = async (parentId: string, subTaskId: string) => {
+    if (!user) return;
+    const parentTaskRef = doc(db, 'users', user.uid, 'tasks', parentId);
+    const parentTask = tasks.find(t => t.id === parentId);
+    if (!parentTask || !parentTask.subtasks) return;
+
+    const updatedSubtasks = parentTask.subtasks.filter(subtask => subtask.id !== subTaskId);
+    try {
+      await updateDoc(parentTaskRef, { subtasks: updatedSubtasks });
+      setTasks(prevTasks =>
+        prevTasks.map(task =>
+          task.id === parentId
+            ? { ...task, subtasks: updatedSubtasks }
+            : task
+        )
+      );
+      toast({ title: "Subtask Deleted", description: "The subtask has been successfully removed." });
+    } catch (error) {
+      console.error("Error deleting subtask:", error);
+      toast({ title: "Error", description: "Could not delete subtask.", variant: "destructive" });
+    }
   };
 
   const handleSuggestOrganization = async () => {
@@ -225,43 +347,53 @@ export default function HomePage() {
     }
   };
 
-  const handleAddPathwayToTasks = () => {
-    if (!generatedPathway) return;
+  const handleAddPathwayToTasks = async () => {
+    if (!generatedPathway || !user) return;
+    
+    const newTasksForOptimisticUpdate: Task[] = [];
+    const batchOp = writeBatch(db);
+    const tasksCol = collection(db, 'users', user.uid, 'tasks');
 
-    const newTasksToAdd: Task[] = [];
     generatedPathway.steps.forEach(step => {
-      const taskId = generateId();
-      const newMainTask: Task = {
-        id: taskId,
+      const newTaskDocRef = doc(tasksCol); // Generate a new doc ref for ID
+      const newMainTaskData = {
         description: step.taskDescription,
         completed: false,
         storyPoints: 0,
         createdAt: new Date().toISOString(),
-        isNew: true,
+        userId: user.uid,
         subtasks: (step.subtasks || []).map(subStepDesc => ({
           id: generateId(),
           description: subStepDesc,
           completed: false,
-          parentId: taskId,
+          parentId: newTaskDocRef.id, // Assign parent ID from the new doc ref
           createdAt: new Date().toISOString(),
         })),
       };
-      newTasksToAdd.push(newMainTask);
+      batchOp.set(newTaskDocRef, newMainTaskData);
+      newTasksForOptimisticUpdate.push({ ...newMainTaskData, id: newTaskDocRef.id, isNew: true });
     });
 
-    setTasks(prevTasks => [...newTasksToAdd, ...prevTasks]);
+    try {
+      await batchOp.commit();
+      setTasks(prevTasks => [...newTasksForOptimisticUpdate, ...prevTasks]);
+      setTimeout(() => {
+          setTasks(currentTasks => currentTasks.map(t => 
+            newTasksForOptimisticUpdate.find(nt => nt.id === t.id) ? {...t, isNew: false} : t
+          ));
+      }, 600);
 
-    setTimeout(() => {
-        setTasks(currentTasks => currentTasks.map(t => newTasksToAdd.find(nt => nt.id === t.id) ? {...t, isNew: false} : t));
-    }, 600);
-
-    setIsPathwayDialogOpen(false);
-    setGeneratedPathway(null);
-    setLearningGoal(''); 
-    toast({
-      title: "Learning Pathway Added",
-      description: "The generated tasks have been added to your list.",
-    });
+      setIsPathwayDialogOpen(false);
+      setGeneratedPathway(null);
+      setLearningGoal(''); 
+      toast({
+        title: "Learning Pathway Added",
+        description: "The generated tasks have been added to your list in the database.",
+      });
+    } catch (error) {
+      console.error("Error adding pathway to tasks in Firestore:", error);
+      toast({ title: "Error", description: "Could not add pathway tasks to database.", variant: "destructive" });
+    }
   };
 
   if (authLoading) {
@@ -358,7 +490,7 @@ export default function HomePage() {
           </Card>
           
           <div className="my-6 flex justify-end">
-            <Button onClick={handleSuggestOrganization} disabled={isLoadingSuggestion} variant="outline" className="border-accent text-accent hover:bg-accent/10 hover:text-accent">
+            <Button onClick={handleSuggestOrganization} disabled={isLoadingSuggestion || tasks.length === 0} variant="outline" className="border-accent text-accent hover:bg-accent/10 hover:text-accent">
               {isLoadingSuggestion ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
@@ -368,16 +500,23 @@ export default function HomePage() {
             </Button>
           </div>
 
-          <TaskList 
-            tasks={tasks} 
-            onToggleComplete={toggleComplete} 
-            onUpdateStoryPoints={updateStoryPoints}
-            onDeleteTask={deleteTask}
-            onAddSubTask={addSubTask}
-            onToggleSubTaskComplete={toggleSubTaskComplete}
-            onDeleteSubTask={deleteSubTask}
-            onDeleteAllCompletedTasks={deleteAllCompletedTasks}
-          />
+          {isLoadingTasks ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+              <p className="mt-4 text-lg text-muted-foreground">Loading your tasks...</p>
+            </div>
+          ) : (
+            <TaskList 
+              tasks={tasks} 
+              onToggleComplete={toggleComplete} 
+              onUpdateStoryPoints={updateStoryPoints}
+              onDeleteTask={deleteTask}
+              onAddSubTask={addSubTask}
+              onToggleSubTaskComplete={toggleSubTaskComplete}
+              onDeleteSubTask={deleteSubTask}
+              onDeleteAllCompletedTasks={deleteAllCompletedTasks}
+            />
+          )}
         </main>
       </div>
 
