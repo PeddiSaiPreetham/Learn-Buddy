@@ -8,73 +8,71 @@ body {
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
+    --background: 105 27% 95%; /* Very light green #F0F4EF */
+    --foreground: 0 0% 20%; /* Dark Gray for text #333333 */
+    --card: 105 27% 98%; /* Slightly lighter green than background */
+    --card-foreground: 0 0% 20%; /* Dark Gray for text */
+    --popover: 105 27% 98%;
+    --popover-foreground: 0 0% 20%;
+    --primary: 81 87% 65%; /* Light moss green #AEF359 */
+    --primary-foreground: 81 50% 21%; /* Dark green for text on primary */
+    --secondary: 105 20% 85%; /* Muted green, derived from background */
+    --secondary-foreground: 105 10% 25%; /* Darker muted green text */
+    --muted: 105 20% 88%; /* Muted green, for less emphasis */
+    --muted-foreground: 0 0% 45%; /* Standard muted foreground gray */
+    --accent: 36 87% 65%; /* Dusty orange #F3B759 */
+    --accent-foreground: 36 53% 26%; /* Dark orange/brown for text on accent */
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
+    --border: 105 20% 88%; /* Border color derived from background */
+    --input: 105 20% 92%; /* Input background */
+    --ring: 81 87% 65%; /* Primary color for rings */
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Sidebar variables adjusted to match main theme for consistency */
+    --sidebar-background: 105 27% 95%;
+    --sidebar-foreground: 0 0% 20%;
+    --sidebar-primary: 81 87% 65%;
+    --sidebar-primary-foreground: 81 50% 21%;
+    --sidebar-accent: 36 87% 65%;
+    --sidebar-accent-foreground: 36 53% 26%;
+    --sidebar-border: 105 20% 88%;
+    --sidebar-ring: 81 87% 65%;
   }
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
+    --background: 105 10% 15%; /* Darker shade of green */
+    --foreground: 105 20% 90%; /* Light green for text */
+    --card: 105 10% 18%;
+    --card-foreground: 105 20% 90%;
+    --popover: 105 10% 18%;
+    --popover-foreground: 105 20% 90%;
+    --primary: 81 70% 55%; /* Slightly desaturated primary for dark */
+    --primary-foreground: 81 87% 90%; /* Lighter text for dark primary */
+    --secondary: 105 10% 25%;
+    --secondary-foreground: 105 20% 90%;
+    --muted: 105 10% 22%;
+    --muted-foreground: 105 15% 65%;
+    --accent: 36 70% 55%; /* Slightly desaturated accent for dark */
+    --accent-foreground: 36 87% 90%; /* Lighter text for dark accent */
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --border: 105 10% 25%;
+    --input: 105 10% 22%;
+    --ring: 81 70% 55%;
+
+    --sidebar-background: 105 10% 15%;
+    --sidebar-foreground: 105 20% 90%;
+    --sidebar-primary: 81 70% 55%;
+    --sidebar-primary-foreground: 81 87% 90%;
+    --sidebar-accent: 36 70% 55%;
+    --sidebar-accent-foreground: 36 87% 90%;
+    --sidebar-border: 105 10% 25%;
+    --sidebar-ring: 81 70% 55%;
   }
 }
 
@@ -85,4 +83,14 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Animation for new task item */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
 }
