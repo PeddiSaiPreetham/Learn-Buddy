@@ -2,28 +2,31 @@
 "use client";
 
 import { useState, useEffect, FormEvent } from 'react';
+import Link from 'next/link';
 import type { Task, SubTask } from '@/lib/types';
 import { Header } from '@/components/Header';
 import { TaskForm } from '@/components/TaskForm';
 import { TaskList } from '@/components/TaskList';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
+  DialogDescription as DialogDesc, // Renamed to avoid conflict
   DialogFooter,
 } from '@/components/ui/dialog';
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Lightbulb, Loader2, Sparkles, Wand2 } from 'lucide-react';
+import { Lightbulb, Loader2, Sparkles, Wand2, UserCheck, AlertTriangle } from 'lucide-react';
 import { suggestTaskOrganization } from '@/ai/flows/suggest-task-organization';
 import { generateLearningPathway, type GenerateLearningPathwayOutput } from '@/ai/flows/generate-learning-pathway';
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
 
 export default function HomePage() {
+  const { user, loading: authLoading } = useAuth(); // Get user and loading state
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoadingSuggestion, setIsLoadingSuggestion] = useState(false);
   const [organizationSuggestion, setOrganizationSuggestion] = useState<string | null>(null);
@@ -37,25 +40,33 @@ export default function HomePage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const storedTasks = localStorage.getItem('pythonicTasks');
-    if (storedTasks) {
-      try {
-        const parsedTasks = JSON.parse(storedTasks);
-        const validatedTasks = parsedTasks.map((task: Task) => ({
-          ...task,
-          subtasks: task.subtasks || [],
-        }));
-        setTasks(validatedTasks);
-      } catch (error) {
-        console.error("Error parsing tasks from local storage:", error);
-        setTasks([]);
+    if (user) { // Only load tasks if user is logged in
+      const storedTasks = localStorage.getItem(`pythonicTasks_${user.uid}`);
+      if (storedTasks) {
+        try {
+          const parsedTasks = JSON.parse(storedTasks);
+          const validatedTasks = parsedTasks.map((task: Task) => ({
+            ...task,
+            subtasks: task.subtasks || [],
+          }));
+          setTasks(validatedTasks);
+        } catch (error) {
+          console.error("Error parsing tasks from local storage:", error);
+          setTasks([]);
+        }
+      } else {
+        setTasks([]); // Clear tasks if no stored tasks for this user
       }
+    } else {
+      setTasks([]); // Clear tasks if no user
     }
-  }, []);
+  }, [user]); // Rerun when user changes
 
   useEffect(() => {
-    localStorage.setItem('pythonicTasks', JSON.stringify(tasks));
-  }, [tasks]);
+    if (user) { // Only save tasks if user is logged in
+      localStorage.setItem(`pythonicTasks_${user.uid}`, JSON.stringify(tasks));
+    }
+  }, [tasks, user]); // Rerun when tasks or user changes
 
   const generateId = () => crypto.randomUUID();
 
@@ -240,20 +251,75 @@ export default function HomePage() {
 
     setTasks(prevTasks => [...newTasksToAdd, ...prevTasks]);
 
-    // Trigger animation for multiple tasks
     setTimeout(() => {
         setTasks(currentTasks => currentTasks.map(t => newTasksToAdd.find(nt => nt.id === t.id) ? {...t, isNew: false} : t));
     }, 600);
 
     setIsPathwayDialogOpen(false);
     setGeneratedPathway(null);
-    setLearningGoal(''); // Clear input
+    setLearningGoal(''); 
     toast({
       title: "Learning Pathway Added",
       description: "The generated tasks have been added to your list.",
     });
   };
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-4 sm:p-6 bg-background">
+        <Loader2 className="h-16 w-16 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">Loading Learn Buddy...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex flex-col items-center p-4 sm:p-6 bg-background">
+        <div className="w-full max-w-2xl lg:max-w-3xl">
+          <Header />
+          <main className="mt-8">
+            <Card className="shadow-lg border-primary">
+              <CardHeader>
+                <CardTitle className="font-headline flex items-center gap-2 text-2xl text-primary">
+                  <UserCheck className="h-7 w-7" />
+                  Welcome to Learn Buddy!
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-lg text-foreground">
+                  Please log in or sign up to manage your learning tasks and generate personalized pathways.
+                </p>
+                <div className="flex gap-4">
+                  <Button asChild size="lg" className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground">
+                    <Link href="/login">Log In</Link>
+                  </Button>
+                  <Button asChild variant="outline" size="lg" className="flex-1">
+                    <Link href="/signup">Sign Up</Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="mt-8 shadow-md bg-accent/10 border-accent">
+              <CardHeader>
+                  <CardTitle className="font-headline flex items-center gap-2 text-xl text-accent-foreground">
+                      <AlertTriangle className="h-5 w-5 text-accent" />
+                      Important Note
+                  </CardTitle>
+              </CardHeader>
+              <CardContent>
+                  <p className="text-sm text-accent-foreground/90">
+                      If this is your first time using authentication, you'll need to set up Firebase in your project and update the environment variables in the <code>.env</code> file with your Firebase project credentials. Check the console for more details if you encounter issues.
+                  </p>
+              </CardContent>
+            </Card>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  // User is logged in, render the main app
   return (
     <div className="min-h-screen flex flex-col items-center p-4 sm:p-6 bg-background">
       <div className="w-full max-w-2xl lg:max-w-3xl">
@@ -322,9 +388,9 @@ export default function HomePage() {
               <Lightbulb className="h-5 w-5 text-primary" />
               Task Organization Suggestion
             </DialogTitle>
-            <DialogDescription className="mt-2 text-sm">
+            <DialogDesc className="mt-2 text-sm">
               Here's an AI-generated suggestion for organizing your tasks:
-            </DialogDescription>
+            </DialogDesc>
           </DialogHeader>
           <ScrollArea className="max-h-[60vh] my-4">
             <p className="whitespace-pre-wrap p-1 text-sm">{organizationSuggestion}</p>
@@ -344,9 +410,9 @@ export default function HomePage() {
               <Sparkles className="h-5 w-5 text-primary" />
               Generated Learning Pathway: {generatedPathway?.pathwayTitle || "Your Plan"}
             </DialogTitle>
-            <DialogDescription className="mt-2 text-sm">
+            <DialogDesc className="mt-2 text-sm">
               Here's a suggested learning plan. You can add these tasks to your list.
-            </DialogDescription>
+            </DialogDesc>
           </DialogHeader>
           <ScrollArea className="max-h-[60vh] my-4 p-1">
             {generatedPathway?.steps.map((step, index) => (
