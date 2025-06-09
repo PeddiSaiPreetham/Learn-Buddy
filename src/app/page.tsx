@@ -99,6 +99,14 @@ export default function HomePage() {
     });
   };
 
+  const deleteAllCompletedTasks = () => {
+    setTasks(prevTasks => prevTasks.filter(task => !task.completed));
+    toast({
+      title: "All Completed Tasks Deleted",
+      description: "All completed tasks have been successfully removed.",
+    });
+  };
+
   const addSubTask = (parentId: string, description: string) => {
     const newSubTask: SubTask = {
       id: generateId(),
@@ -302,6 +310,7 @@ export default function HomePage() {
             onAddSubTask={addSubTask}
             onToggleSubTaskComplete={toggleSubTaskComplete}
             onDeleteSubTask={deleteSubTask}
+            onDeleteAllCompletedTasks={deleteAllCompletedTasks}
           />
         </main>
       </div>

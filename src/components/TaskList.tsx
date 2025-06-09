@@ -4,7 +4,8 @@
 import type { Task } from '@/lib/types';
 import { TaskItem } from './TaskItem';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { FileText } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { FileText, Trash2 } from 'lucide-react';
 
 interface TaskListProps {
   tasks: Task[];
@@ -14,6 +15,7 @@ interface TaskListProps {
   onAddSubTask: (parentId: string, description: string) => void;
   onToggleSubTaskComplete: (parentId: string, subTaskId: string) => void;
   onDeleteSubTask: (parentId: string, subTaskId: string) => void;
+  onDeleteAllCompletedTasks: () => void;
 }
 
 export function TaskList({ 
@@ -24,6 +26,7 @@ export function TaskList({
   onAddSubTask,
   onToggleSubTaskComplete,
   onDeleteSubTask,
+  onDeleteAllCompletedTasks,
 }: TaskListProps) {
   if (tasks.length === 0) {
     return (
@@ -77,11 +80,21 @@ export function TaskList({
 
       {completedTasks.length > 0 && (
          <Card className="shadow-lg opacity-80">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2 font-headline text-2xl text-muted-foreground">
               <FileText className="h-6 w-6 text-muted-foreground" />
               Completed Tasks ({completedTasks.length})
             </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onDeleteAllCompletedTasks}
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/50"
+              aria-label="Delete all completed tasks"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete All
+            </Button>
           </CardHeader>
           <CardContent>
             {completedTasks.map((task) => (
