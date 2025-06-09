@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'Pythonic Tasks',
+  title: 'Atomic Tasks',
   description: 'A to-do list app with smart suggestions.',
 };
 
