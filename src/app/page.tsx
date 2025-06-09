@@ -1,7 +1,8 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
-import type { Task } from '@/lib/types';
+import type { Task, SubTask } from '@/lib/types';
 import { Header } from '@/components/Header';
 import { TaskForm } from '@/components/TaskForm';
 import { TaskList } from '@/components/TaskList';
@@ -30,7 +31,18 @@ export default function HomePage() {
   useEffect(() => {
     const storedTasks = localStorage.getItem('pythonicTasks');
     if (storedTasks) {
-      setTasks(JSON.parse(storedTasks));
+      try {
+        const parsedTasks = JSON.parse(storedTasks);
+        // Ensure tasks have subtasks array initialized
+        const validatedTasks = parsedTasks.map((task: Task) => ({
+          ...task,
+          subtasks: task.subtasks || [],
+        }));
+        setTasks(validatedTasks);
+      } catch (error) {
+        console.error("Error parsing tasks from local storage:", error);
+        setTasks([]); // Reset to empty array on error
+      }
     }
   }, []);
 
@@ -49,6 +61,7 @@ export default function HomePage() {
       storyPoints: 0,
       createdAt: new Date().toISOString(),
       isNew: true, // Mark as new for animation
+      subtasks: [],
     };
     setTasks(prevTasks => [newTask, ...prevTasks]);
     // Remove isNew flag after animation
@@ -80,6 +93,58 @@ export default function HomePage() {
       description: "The task has been successfully removed.",
     });
   };
+
+  const addSubTask = (parentId: string, description: string) => {
+    const newSubTask: SubTask = {
+      id: generateId(),
+      description,
+      completed: false,
+      parentId,
+      createdAt: new Date().toISOString(),
+    };
+    setTasks(prevTasks => 
+      prevTasks.map(task => 
+        task.id === parentId 
+          ? { ...task, subtasks: [...(task.subtasks || []), newSubTask] } 
+          : task
+      )
+    );
+  };
+
+  const toggleSubTaskComplete = (parentId: string, subTaskId: string) => {
+    setTasks(prevTasks =>
+      prevTasks.map(task =>
+        task.id === parentId
+          ? {
+              ...task,
+              subtasks: (task.subtasks || []).map(subtask =>
+                subtask.id === subTaskId
+                  ? { ...subtask, completed: !subtask.completed }
+                  : subtask
+              ),
+            }
+          : task
+      )
+    );
+  };
+
+  const deleteSubTask = (parentId: string, subTaskId: string) => {
+    setTasks(prevTasks =>
+      prevTasks.map(task =>
+        task.id === parentId
+          ? {
+              ...task,
+              subtasks: (task.subtasks || []).filter(subtask => subtask.id !== subTaskId),
+            }
+          : task
+      )
+    );
+    toast({
+      title: "Subtask Deleted",
+      description: "The subtask has been successfully removed.",
+    });
+  };
+
 
   const handleSuggestOrganization = async () => {
     if (tasks.length === 0) {
@@ -130,6 +195,9 @@ export default function HomePage() {
             onToggleComplete={toggleComplete} 
             onUpdateStoryPoints={updateStoryPoints}
             onDeleteTask={deleteTask}
+            onAddSubTask={addSubTask}
+            onToggleSubTaskComplete={toggleSubTaskComplete}
+            onDeleteSubTask={deleteSubTask}
           />
         </main>
       </div>

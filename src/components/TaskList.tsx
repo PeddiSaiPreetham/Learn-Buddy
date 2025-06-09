@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Task } from '@/lib/types';
@@ -10,9 +11,20 @@ interface TaskListProps {
   onToggleComplete: (id: string) => void;
   onUpdateStoryPoints: (id: string, points: number) => void;
   onDeleteTask: (id: string) => void;
+  onAddSubTask: (parentId: string, description: string) => void;
+  onToggleSubTaskComplete: (parentId: string, subTaskId: string) => void;
+  onDeleteSubTask: (parentId: string, subTaskId: string) => void;
 }
 
-export function TaskList({ tasks, onToggleComplete, onUpdateStoryPoints, onDeleteTask }: TaskListProps) {
+export function TaskList({ 
+  tasks, 
+  onToggleComplete, 
+  onUpdateStoryPoints, 
+  onDeleteTask,
+  onAddSubTask,
+  onToggleSubTaskComplete,
+  onDeleteSubTask,
+}: TaskListProps) {
   if (tasks.length === 0) {
     return (
       <Card className="shadow-lg">
@@ -52,6 +64,9 @@ export function TaskList({ tasks, onToggleComplete, onUpdateStoryPoints, onDelet
                 onToggleComplete={onToggleComplete}
                 onUpdateStoryPoints={onUpdateStoryPoints}
                 onDeleteTask={onDeleteTask}
+                onAddSubTask={onAddSubTask}
+                onToggleSubTaskComplete={onToggleSubTaskComplete}
+                onDeleteSubTask={onDeleteSubTask}
               />
             ))
           ) : (
@@ -76,6 +91,9 @@ export function TaskList({ tasks, onToggleComplete, onUpdateStoryPoints, onDelet
                 onToggleComplete={onToggleComplete}
                 onUpdateStoryPoints={onUpdateStoryPoints}
                 onDeleteTask={onDeleteTask}
+                onAddSubTask={onAddSubTask}
+                onToggleSubTaskComplete={onToggleSubTaskComplete}
+                onDeleteSubTask={onDeleteSubTask}
               />
             ))}
           </CardContent>
