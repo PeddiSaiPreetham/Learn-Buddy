@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'Atomic Tasks',
+  title: 'Learn Buddy',
   description: 'A to-do list app with smart suggestions.',
 };
 
